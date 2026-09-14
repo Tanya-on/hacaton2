@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Smart Planner Pro - профессиональный планировщик">
+<title>PlanPro — Умный планировщик</title>
+
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Inter', 'system-ui'], mono: ['JetBrains Mono'] }
+    }
+  }
+}
+</script>
+
+<style>
+/* ============================================
+   CSS VARIABLES & 4 THEMES
+   ============================================ */
+  :root {
+    /* Light Theme (Default) */
+    --primary: #8b5cf6;
+    --secondary: #ec4899;
+    --bg-primary: #fafafa;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #f4f4f5;
+    --text-primary: #18181b;
+    --text-secondary: #52525b;
+    --text-tertiary: #a1a1aa;
+    --border: #e4e4e7;
+    --shadow: rgba(0,0,0,0.1);
+  }
+  
+  body.dark {
+    --primary: #a78bfa;
+    --secondary: #f472b6;
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-tertiary: #334155;
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-tertiary: #64748b;
+    --border: #334155;
+    --shadow: rgba(0,0,0,0.3);
+  }
+  
+  body.nature {
+    --primary: #10b981;
+    --secondary: #34d399;
+    --bg-primary: #ecfdf5;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #d1fae5;
+    --text-primary: #064e3b;
+    --text-secondary: #047857;
+    --text-tertiary: #6ee7b7;
+    --border: #a7f3d0;
+    --shadow: rgba(16,185,129,0.15);
+  }
+  
+  body.sunset {
+    --primary: #f59e0b;
+    --secondary: #f97316;
+    --bg-primary: #fffbeb;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #fef3c7;
+    --text-primary: #78350f;
+    --text-secondary: #92400e;
+    --text-tertiary: #fcd34d;
+    --border: #fde68a;
+    --shadow: rgba(245,158,11,0.15);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { 
+    font-family: 'Inter', sans-serif; 
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    transition: all 0.3s ease;
+    overflow-x: hidden;
+  }
+
+  /* Background Animation */
+  .bg-mesh {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  }
+  .bg-mesh::before, .bg-mesh::after {
+    content: ''; position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.4;
+  }
+  .bg-mesh::before {
+    width: 600px; height: 600px; background: var(--primary);
+    top: -200px; right: -200px; animation: float1 20s ease-in-out infinite;
+  }
+  .bg-mesh::after {
+    width: 500px; height: 500px; background: var(--secondary);
+    bottom: -150px; left: -150px; animation: float2 25s ease-in-out infinite;
+  }
+  @keyframes float1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(50px,50px)} }
+  @keyframes float2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-40px,-40px)} }
+
+  .glass {
+    background: rgba(255,255,255,0.7);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 32px var(--shadow);
+  }
+  body.dark .glass { background: rgba(30,41,59,0.7); }
+
+  .card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    transition: all 0.3s;
+    box-shadow: 0 4px 12px var(--shadow);
+  }
+  .card:hover { transform: translateY(-4px); box-shadow: 0 12px 32px var(--shadow); }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white; font-weight: 600; border: none; cursor: pointer;
+    transition: all 0.3s; box-shadow: 0 4px 14px var(--shadow);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px var(--shadow); }
+  
+  .btn-secondary {
+    background: var(--bg-tertiary); color: var(--text-primary);
+    border: 1px solid var(--border); font-weight: 500; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-secondary:hover { background: var(--border); }
+
+  input, textarea, select {
+    background: var(--bg-secondary); border: 1.5px solid var(--border);
+    color: var(--text-primary); border-radius: 12px;
+    transition: all 0.2s; font-family: inherit; padding: 0.75rem 1rem; width: 100%;
+  }
+  input:focus, textarea:focus, select:focus {
+    outline: none; border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(139,92,246,0.15);
+  }
+
+  .nav-item {
+    transition: all 0.2s; border-radius: 12px; color: var(--text-secondary);
+    font-weight: 500; cursor: pointer; display: flex; align-items: center;
+    gap: 0.75rem; padding: 0.75rem 1rem; width: 100%; text-align: left;
+    background: transparent; border: none; font-size: 0.9rem;
+  }
+  .nav-item:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+  .nav-item.active { 
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white; box-shadow: 0 4px 12px var(--shadow);
+  }
+
+  .page { display: none; animation: fadeIn 0.4s ease; }
+  .page.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  .task-item { transition: all 0.3s; }
+  .task-item:hover { transform: translateX(4px); }
+  .task-item.completed .task-title { text-decoration: line-through; opacity: 0.5; }
+
+  .cat-study { border-left: 4px solid #3b82f6; }
+  .cat-personal { border-left: 4px solid #10b981; }
+  .cat-health { border-left: 4px solid #ef4444; }
+  .cat-creative { border-left: 4px solid #8b5cf6; }
+  .cat-work { border-left: 4px solid #f59e0b; }
+  .cat-other { border-left: 4px solid #6b7280; }
+
+  .priority-high { background: linear-gradient(90deg, rgba(239,68,68,0.1), transparent); }
+  .priority-medium { background: linear-gradient(90deg, rgba(245,158,11,0.08), transparent); }
+  .priority-low { background: linear-gradient(90deg, rgba(16,185,129,0.08), transparent); }
+
+  .habit-cell {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.2s; font-size: 12px; font-weight: 600;
+    background: var(--bg-tertiary); color: var(--text-tertiary);
+  }
+  .habit-cell:hover { transform: scale(1.15); }
+  .habit-cell.done { 
+    background: linear-gradient(135deg, var(--primary), var(--secondary)); 
+    color: white; 
+  }
+  .habit-cell.skipped { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+  .habit-cell.today { box-shadow: 0 0 0 3px var(--primary); }
+
+  .checkbox {
+    appearance: none; width: 22px; height: 22px;
+    border: 2px solid var(--border); border-radius: 6px; cursor: pointer;
+    position: relative; transition: all 0.2s; background: transparent; flex-shrink: 0;
+  }
+  .checkbox:checked {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    border-color: transparent;
+  }
+  .checkbox:checked::after {
+    content: '✓'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    color: white; font-size: 13px; font-weight: bold;
+  }
+
+  .modal {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(8px); z-index: 100; align-items: center; justify-content: center;
+    padding: 20px; animation: fadeIn 0.2s;
+  }
+  .modal.active { display: flex; }
+
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: 20px; padding: 40px 20px;
+    text-align: center; cursor: pointer; transition: all 0.3s; background: var(--bg-tertiary);
+  }
+  .upload-zone:hover { border-color: var(--primary); background: rgba(139,92,246,0.05); }
+  .upload-zone.dragover { border-color: var(--primary); background: rgba(139,92,246,0.1); transform: scale(1.01); }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px;
+    border-radius: 20px; font-size: 11px; font-weight: 600;
+    background: var(--bg-tertiary); color: var(--text-secondary);
+  }
+  .badge-accent { 
+    background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(236,72,153,0.2)); 
+    color: var(--primary); 
+  }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+
+  .pomodoro-display {
+    font-size: 5rem; font-weight: 800; font-family: 'JetBrains Mono', monospace;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    font-variant-numeric: tabular-nums; letter-spacing: -2px;
+  }
+
+  .deadline-urgent { border-left: 4px solid #ef4444; background: linear-gradient(90deg, rgba(239,68,68,0.1), transparent); }
+  .deadline-warning { border-left: 4px solid #f59e0b; background: linear-gradient(90deg, rgba(245,158,11,0.08), transparent); }
+  .deadline-ok { border-left: 4px solid #10b981; background: linear-gradient(90deg, rgba(16,185,129,0.08), transparent); }
+  .deadline-overdue { border-left: 4px solid #7f1d1d; background: linear-gradient(90deg, rgba(127,29,29,0.1), transparent); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.85} }
+
+  .confetti {
+    position: fixed; width: 10px; height: 10px; pointer-events: none; z-index: 1000;
+    animation: confettiFall 1.5s ease-out forwards;
+  }
+  @keyframes confettiFall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(-200px) rotate(720deg); opacity: 0; }
+  }
+
+  .search-box { position: relative; }
+  .search-box i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary); }
+  .search-box input { padding-left: 40px; }
+
+  .code-area { font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.6; tab-size: 2; resize: vertical; }
+
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-tertiary); }
+  .empty-state i { font-size: 3rem; margin-bottom: 16px; opacity: 0.4; }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .bottom-nav { display: flex !important; }
+    .main-content { padding-bottom: 90px; }
+    .pomodoro-display { font-size: 3.5rem; }
+  }
+  @media (min-width: 769px) { .bottom-nav { display: none !important; } }
+
+  .stagger > * { animation: fadeIn 0.4s ease backwards; }
+  .stagger > *:nth-child(1) { animation-delay: 0.05s; }
+  .stagger > *:nth-child(2) { animation-delay: 0.1s; }
+  .stagger > *:nth-child(3) { animation-delay: 0.15s; }
+  .stagger > *:nth-child(4) { animation-delay: 0.2s; }
+
+  kbd {
+    background: var(--bg-tertiary); border: 1px solid var(--border);
+    border-radius: 4px; padding: 2px 6px; font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .hidden { display: none !important; }
+  .grid-auto { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+
+  /* Theme Selector */
+  .theme-selector {
+    position: fixed; bottom: 100px; right: 20px; z-index: 50;
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 16px; padding: 12px; box-shadow: 0 8px 32px var(--shadow);
+    display: none;
+  }
+  .theme-selector.active { display: block; animation: slideUp 0.3s ease; }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  
+  .theme-option {
+    width: 40px; height: 40px; border-radius: 10px; cursor: pointer;
+    margin: 4px; transition: transform 0.2s; border: 2px solid transparent;
+  }
+  .theme-option:hover { transform: scale(1.1); }
+  .theme-option.active { border-color: var(--primary); }
+  .theme-light { background: linear-gradient(135deg, #8b5cf6, #ec4899); }
+  .theme-dark { background: linear-gradient(135deg, #1e293b, #0f172a); }
+  .theme-nature { background: linear-gradient(135deg, #10b981, #34d399); }
+  .theme-sunset { background: linear-gradient(135deg, #f59e0b, #f97316); }
+</style>
+</head>
+<body class="light">
+
+<div class="bg-mesh"></div>
+
+<!-- Theme Selector -->
+<div class="theme-selector" id="themeSelector">
+  <div class="text-xs font-semibold mb-2 px-2">Выберите тему:</div>
+  <div class="flex flex-wrap justify-center">
+    <div class="theme-option theme-light active" onclick="setTheme('light')" title="Light"></div>
+    <div class="theme-option theme-dark" onclick="setTheme('dark')" title="Dark"></div>
+    <div class="theme-option theme-nature" onclick="setTheme('nature')" title="Nature"></div>
+    <div class="theme-option theme-sunset" onclick="setTheme('sunset')" title="Sunset"></div>
+  </div>
+</div>
+
+<div class="flex min-h-screen relative z-10">
+  <!-- Sidebar -->
+  <aside class="sidebar w-64 glass min-h-screen p-5 fixed z-30">
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-2.5">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white font-bold shadow-lg">
+          <i class="fas fa-bolt"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold">PlanPro</h1>
+          <p class="text-[10px] opacity-60 uppercase tracking-wider">Ultimate v3</p>
+        </div>
+      </div>
+      <button onclick="toggleThemeSelector()" class="w-9 h-9 rounded-lg btn-secondary flex items-center justify-center" title="Выбрать тему">
+        <i class="fas fa-palette"></i>
+      </button>
+    </div>
+    
+    <div class="mb-5 p-3.5 rounded-xl bg-gradient-to-br from-violet-500/10 to-pink-500/10 border border-violet-500/20">
+      <div id="greeting" class="text-sm font-semibold mb-0.5"></div>
+      <div id="current-date" class="text-[11px] opacity-70"></div>
+    </div>
+    
+    <nav class="space-y-1 mb-5">
+      <button onclick="showPage('dashboard')" class="nav-item active">
+        <i class="fas fa-home w-4"></i><span>Обзор</span>
+      </button>
+      <button onclick="showPage('calendar')" class="nav-item">
+        <i class="fas fa-calendar w-4"></i><span>Календарь</span>
+      </button>
+      <button onclick="showPage('tasks')" class="nav-item">
+        <i class="fas fa-check-circle w-4"></i><span>Задачи</span>
+        <span id="nav-task-count" class="ml-auto badge badge-accent text-[10px]">0</span>
+      </button>
+      <button onclick="showPage('deadlines')" class="nav-item">
+        <i class="fas fa-flag w-4"></i><span>Дедлайны</span>
+      </button>
+      <button onclick="showPage('schedule')" class="nav-item">
+        <i class="fas fa-book-reader w-4"></i><span>Расписание</span>
+      </button>
+      <button onclick="showPage('habits')" class="nav-item">
+        <i class="fas fa-fire w-4"></i><span>Привычки</span>
+      </button>
+      <button onclick="showPage('goals')" class="nav-item">
+        <i class="fas fa-bullseye w-4"></i><span>Цели</span>
+      </button>
+      <button onclick="showPage('pomodoro')" class="nav-item">
+        <i class="fas fa-clock w-4"></i><span>Фокус</span>
+      </button>
+      <button onclick="showPage('stats')" class="nav-item">
+        <i class="fas fa-chart-line w-4"></i><span>Статистика</span>
+      </button>
+      <button onclick="showPage('notes')" class="nav-item">
+        <i class="fas fa-sticky-note w-4"></i><span>Заметки</span>
+      </button>
+      <button onclick="showPage('import')" class="nav-item">
+        <i class="fas fa-code w-4"></i><span>Импорт</span>
+      </button>
+    </nav>
+    
+    <div class="mb-4 p-3 rounded-xl bg-gradient-to-br from-violet-500/10 to-pink-500/10 border border-violet-500/20">
+      <div class="flex justify-between items-center mb-1.5">
+        <span class="text-[11px] font-semibold opacity-70">Неделя</span>
+        <span id="week-progress-text" class="text-[11px] font-bold">0%</span>
+      </div>
+      <div class="w-full bg-black/5 dark:bg-white/5 rounded-full h-1.5 overflow-hidden">
+        <div id="week-progress" class="h-full rounded-full bg-gradient-to-r from-violet-500 to-pink-500 transition-all" style="width:0%"></div>
+      </div>
+    </div>
+    
+    <div class="space-y-1.5">
+      <button onclick="exportData()" class="w-full text-left px-3 py-2 rounded-lg btn-secondary text-xs flex items-center gap-2">
+        <i class="fas fa-download w-4"></i><span>Экспорт</span>
+      </button>
+      <button onclick="document.getElementById('import-file').click()" class="w-full text-left px-3 py-2 rounded-lg btn-secondary text-xs flex items-center gap-2">
+        <i class="fas fa-upload w-4"></i><span>Импорт</span>
+      </button>
+      <input type="file" id="import-file" class="hidden" accept=".json" onchange="importData(event)">
+    </div>
+    
+    <div class="mt-4 pt-4 border-t border-border text-[10px] opacity-50 space-y-1">
+      <div class="flex items-center gap-1.5"><kbd>⌘N</kbd> Новая задача</div>
+      <div class="flex items-center gap-1.5"><kbd>K</kbd> Поиск</div>
+      <div class="flex items-center gap-1.5"><kbd>Esc</kbd> Закрыть</div>
+    </div>
+  </aside>
+
+  <main class="main-content flex-1 ml-0 md:ml-64 p-5 md:p-8">
+    
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="page active">
+      <div class="mb-6">
+        <h2 id="dash-title" class="text-3xl md:text-4xl font-bold mb-1"></h2>
+        <p class="text-sm opacity-70">Готов к продуктивному дню?</p>
+      </div>
+      
+      <div class="card p-5 rounded-2xl mb-5 cursor-pointer hover:scale-[1.01] transition" onclick="updateQuote()">
+        <div class="flex items-start gap-3.5">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white flex-shrink-0">
+            <i class="fas fa-quote-left"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p id="quote-text" class="text-base font-medium mb-1 leading-relaxed"></p>
+            <p id="quote-author" class="text-xs opacity-60 italic"></p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5 stagger">
+        <div class="card p-4 rounded-2xl">
+          <div class="flex items-center justify-between mb-2">
+            <div class="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-600">
+              <i class="fas fa-tasks text-sm"></i>
+            </div>
+          </div>
+          <div id="stat-today" class="text-2xl font-bold">0</div>
+          <div class="text-[11px] opacity-60 mt-0.5">Задач сегодня</div>
+        </div>
+        <div class="card p-4 rounded-2xl">
+          <div class="flex items-center justify-between mb-2">
+            <div class="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center text-green-600">
+              <i class="fas fa-check text-sm"></i>
+            </div>
+          </div>
+          <div id="stat-done" class="text-2xl font-bold text-green-500">0</div>
+          <div class="text-[11px] opacity-60 mt-0.5">Выполнено</div>
+        </div>
+        <div class="card p-4 rounded-2xl">
+          <div class="flex items-center justify-between mb-2">
+            <div class="w-9 h-9 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-600">
+              <i class="fas fa-graduation-cap text-sm"></i>
+            </div>
+          </div>
+          <div id="stat-classes" class="text-2xl font-bold text-purple-500">0</div>
+          <div class="text-[11px] opacity-60 mt-0.5">Пар сегодня</div>
+        </div>
+        <div class="card p-4 rounded-2xl">
+          <div class="flex items-center justify-between mb-2">
+            <div class="w-9 h-9 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-600">
+              <i class="fas fa-fire text-sm"></i>
+            </div>
+          </div>
+          <div id="stat-streak" class="text-2xl font-bold text-orange-500">0</div>
+          <div class="text-[11px] opacity-60 mt-0.5">Дней серии</div>
+        </div>
+      </div>
+      
+      <div class="card p-5 rounded-2xl mb-5">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="font-semibold text-sm flex items-center gap-2">
+            <i class="fas fa-chart-line text-violet-500"></i>
+            Прогресс дня
+          </h3>
+          <span id="day-progress-text" class="text-2xl font-bold bg-gradient-to-r from-violet-500 to-pink-500 bg-clip-text text-transparent">0%</span>
+        </div>
+        <div class="relative h-2 bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
+          <div id="day-progress-bar" class="absolute top-0 left-0 h-full rounded-full bg-gradient-to-r from-violet-500 to-pink-500 transition-all duration-700" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+        <button onclick="openTaskModal()" class="card p-4 rounded-2xl hover:scale-105 transition text-center">
+          <i class="fas fa-plus text-2xl mb-2 text-violet-500"></i>
+          <div class="text-xs font-semibold">Новая задача</div>
+        </button>
+        <button onclick="showPage('schedule')" class="card p-4 rounded-2xl hover:scale-105 transition text-center">
+          <i class="fas fa-book text-2xl mb-2 text-blue-500"></i>
+          <div class="text-xs font-semibold">Расписание</div>
+        </button>
+        <button onclick="showPage('habits')" class="card p-4 rounded-2xl hover:scale-105 transition text-center">
+          <i class="fas fa-fire text-2xl mb-2 text-orange-500"></i>
+          <div class="text-xs font-semibold">Привычки</div>
+        </button>
+        <button onclick="showPage('pomodoro')" class="card p-4 rounded-2xl hover:scale-105 transition text-center">
+          <i class="fas fa-clock text-2xl mb-2 text-green-500"></i>
+          <div class="text-xs font-semibold">Таймер</div>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
+        <div class="card p-5 rounded-2xl">
+          <h3 class="font-semibold text-sm mb-3 flex items-center gap-2">
+            <i class="fas fa-clock text-violet-500"></i>
+            Сейчас и дальше
+          </h3>
+          <div id="now-next-widget" class="space-y-3"></div>
+        </div>
+
+        <div class="card p-5 rounded-2xl">
+          <div class="flex justify-between items-center mb-3">
+            <h3 class="font-semibold text-sm flex items-center gap-2">
+              <i class="fas fa-flag text-red-500"></i>
+              Срочные дедлайны
+            </h3>
+            <button onclick="showPage('deadlines')" class="text-xs opacity-60 hover:opacity-100">Все →</button>
+          </div>
+          <div id="dash-deadlines" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="card p-5 rounded-2xl">
+          <div class="flex justify-between items-center mb-3">
+            <h3 class="font-semibold text-sm flex items-center gap-2">
+              <i class="fas fa-check-double text-blue-500"></i>
+              Задачи на сегодня
+            </h3>
+            <button onclick="showPage('tasks'); openTaskModal()" class="text-xs opacity-60 hover:opacity-100">+ Добавить</button>
+          </div>
+          <div id="dash-tasks" class="space-y-2 max-h-72 overflow-y-auto"></div>
+        </div>
+
+        <div class="card p-5 rounded-2xl">
+          <div class="flex justify-between items-center mb-3">
+            <h3 class="font-semibold text-sm flex items-center gap-2">
+              <i class="fas fa-book text-purple-500"></i>
+              Расписание сегодня
+            </h3>
+            <button onclick="showPage('schedule')" class="text-xs opacity-60 hover:opacity-100">Все →</button>
+          </div>
+          <div id="dash-schedule" class="space-y-2"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Other pages will be rendered here -->
+    <div id="calendar" class="page"><div class="card p-6 rounded-2xl"><h2 class="text-2xl font-bold mb-4">Календарь</h2><div id="calendar-view"></div></div></div>
+    <div id="tasks" class="page"><div class="card p-6 rounded-2xl"><h2 class="text-2xl font-bold mb-4">Задачи</h2><div id="tasks-list"></div></div></div>
+    <div id="deadlines" class="page"><div class="card p-6 rounded-2xl"><h2 class="text-2xl font-bold mb-4">Дедлайны</h2><div id="deadlines-list"></div></div></div>
+    <div id="schedule" class="page"><div class="card p-6 rounded-2xl"><h2 class="text-2xl font-bold mb-4">Расписание</h2><div id="schedule-list"></div></div></div>
+    <div id="habits" class="page"><div class="card p-6 rounded-2xl"><h2 class="text-2xl font-bold mb-4">Привычки</h2><div id="habits-list"></div></div></div>
+    <div id="goals" class="page"><div class="card p-6 rounded-2xl"><h2 class="text-2xl font-bold mb-4">Цели</h2><div id="goals-list"></div></div></div>
+    <div id="pomodoro" class="page"><div class="card p-6 rounded-2xl text-center"><h2 class="text-2xl font-bold mb-4">Фокус-таймер</h2><div id="pomodoro-timer" class="pomodoro-display mb-4">25:00</div><button onclick="startPomodoro()" class="btn-primary px-6 py-3 rounded-xl">Старт</button></div></div>
+    <div id="stats" class="page"><div class="card p-6 rounded-2xl"><h2 class="text-2xl font-bold mb-4">Статистика</h2><p class="opacity-60">В разработке</p></div></div>
+    <div id="notes" class="page"><div class="card p-6 rounded-2xl"><h2 class="text-2xl font-bold mb-4">Заметки</h2><div id="notes-list"></div></div></div>
+    <div id="import" class="page"><div class="card p-6 rounded-2xl"><h2 class="text-2xl font-bold mb-4">Импорт кода</h2><textarea id="import-code-area" class="code-area w-full p-4 rounded-xl mb-4" rows="10" placeholder="Вставь код сюда..."></textarea><button onclick="executeImportCode()" class="btn-primary px-6 py-3 rounded-xl">Выполнить</button></div></div>
+    
+  </main>
+</div>
+
+<nav class="bottom-nav fixed bottom-0 left-0 right-0 glass justify-around p-2.5 z-50 hidden">
+  <button onclick="showPage('dashboard')" class="flex flex-col items-center text-[10px] p-1.5 rounded-lg flex-1">
+    <i class="fas fa-home text-base mb-0.5"></i><span>Обзор</span>
+  </button>
+  <button onclick="showPage('tasks')" class="flex flex-col items-center text-[10px] p-1.5 rounded-lg flex-1">
+    <i class="fas fa-check-circle text-base mb-0.5"></i><span>Задачи</span>
+  </button>
+  <button onclick="showPage('schedule')" class="flex flex-col items-center text-[10px] p-1.5 rounded-lg flex-1">
+    <i class="fas fa-book-reader text-base mb-0.5"></i><span>Расписание</span>
+  </button>
+  <button onclick="showPage('habits')" class="flex flex-col items-center text-[10px] p-1.5 rounded-lg flex-1">
+    <i class="fas fa-fire text-base mb-0.5"></i><span>Привычки</span>
+  </button>
+  <button onclick="showPage('pomodoro')" class="flex flex-col items-center text-[10px] p-1.5 rounded-lg flex-1">
+    <i class="fas fa-clock text-base mb-0.5"></i><span>Таймер</span>
+  </button>
+</nav>
+
+<script>
+// ============================================
+// ⚠️ ВСТАВЬ СЮДА СВОИ ДАННЫЕ SUPABASE ⚠️
+// ============================================
+
+// 1. Project URL (из твоего Project ID)
+const SUPABASE_URL = 'https://lmudooepmlwkcqezukec.supabase.co';
+
+// 2. Вставь сюда свой Publishable key (начинается с sb_publishable_ или eyJ)
+const SUPABASE_KEY = 'sb_publishable_mLv76V4E89q6b80A17skzw_kWAn9Jce’;
+
+// ============================================
+
+let supabase;
+try {
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  console.log('✅ Supabase connected');
+} catch (e) {
+  console.warn('⚠️ Supabase not configured');
+}
+
+let data = {
+  tasks: JSON.parse(localStorage.getItem('tasks') || '[]'),
+  schedule: JSON.parse(localStorage.getItem('schedule') || '[]'),
+  habits: JSON.parse(localStorage.getItem('habits') || '[]'),
+  goals: JSON.parse(localStorage.getItem('goals') || '[]'),
+  deadlines: JSON.parse(localStorage.getItem('deadlines') || '[]'),
+  notes: JSON.parse(localStorage.getItem('notes') || '[]'),
+  pomodoroCount: parseInt(localStorage.getItem('pomodoroCount') || '0'),
+  pomodoroDate: localStorage.getItem('pomodoroDate') || '',
+  timerHistory: JSON.parse(localStorage.getItem('timerHistory') || '[]'),
+  focusMinutes: parseInt(localStorage.getItem('focusMinutes') || '0')
+};
+
+const today = new Date().toISOString().split('T')[0];
+let currentFilter = 'all';
+let currentCategory = 'all';
+let selectedTaskCategory = 'other';
+let selectedTaskPriority = 'medium';
+let ocrText = '';
+let scheduleView = 'month';
+
+function save() {
+  localStorage.setItem('tasks', JSON.stringify(data.tasks));
+  localStorage.setItem('schedule', JSON.stringify(data.schedule));
+  localStorage.setItem('habits', JSON.stringify(data.habits));
+  localStorage.setItem('goals', JSON.stringify(data.goals));
+  localStorage.setItem('deadlines', JSON.stringify(data.deadlines));
+  localStorage.setItem('notes', JSON.stringify(data.notes));
+  localStorage.setItem('pomodoroCount', data.pomodoroCount.toString());
+  localStorage.setItem('pomodoroDate', data.pomodoroDate);
+  localStorage.setItem('timerHistory', JSON.stringify(data.timerHistory));
+  localStorage.setItem('focusMinutes', data.focusMinutes.toString());
+  saveToCloud();
+}
+
+async function loadFromCloud() {
+  if (!supabase) return;
+  try {
+    const { data: rows, error } = await supabase.from('planner_data').select('*').eq('id', 1).single();
+    if (rows && rows.data) {
+      const cloudData = rows.data;
+      data = { ...data, ...cloudData };
+      console.log('✅ Data loaded from cloud');
+    } else {
+      await saveToCloud();
+    }
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+async function saveToCloud() {
+  if (!supabase) return;
+  try {
+    const { data: existing } = await supabase.from('planner_data').select('id').eq('id', 1).single();
+    if (existing) {
+      await supabase.from('planner_data').update({ data: data, updated_at: new Date().toISOString() }).eq('id', 1);
+    } else {
+      await supabase.from('planner_data').insert({ id: 1, data: data, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+    }
+    console.log('✅ Saved to cloud');
+  } catch (error) {
+    console.error('Error saving:', error);
+  }
+}
+
+function createConfetti() {
+  const colors = ['#8b5cf6', '#ec4899', '#3b82f6', '#10b981', '#f59e0b'];
+  for (let i = 0; i < 30; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = Math.random() * 100 + 'vw';
+    c.style.top = '50vh';
+    c.style.background = colors[Math.floor(Math.random() * colors.length)];
+    c.style.animationDelay = Math.random() * 0.5 + 's';
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 1500);
+  }
+}
+
+function setTheme(theme) {
+  document.body.className = theme;
+  localStorage.setItem('theme', theme);
+  document.querySelectorAll('.theme-option').forEach(el => el.classList.remove('active'));
+  document.querySelector(`.theme-${theme}`).classList.add('active');
+  document.getElementById('themeSelector').classList.remove('active');
+}
+
+function toggleThemeSelector() {
+  document.getElementById('themeSelector').classList.toggle('active');
+}
+
+function updateGreeting() {
+  const hour = new Date().getHours();
+  let greeting = hour >= 5 && hour < 12 ? 'Доброе утро! ☀️' : hour >= 12 && hour < 17 ? 'Добрый день! 🌤️' : hour >= 17 && hour < 22 ? 'Добрый вечер! 🌆' : 'Доброй ночи! 🌙';
+  document.getElementById('greeting').textContent = greeting;
+  document.getElementById('dash-title').textContent = greeting;
+  document.getElementById('current-date').textContent = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+const quotes = [
+  { text: "Маленькие шаги каждый день приводят к большим результатам.", author: "Неизвестный автор" },
+  { text: "Дисциплина — это мост между целями и достижениями.", author: "Джим Рон" },
+  { text: "Не считай дни, делай так, чтобы дни считались.", author: "Мухаммед Али" }
+];
+
+function updateQuote() {
+  const quote = quotes[Math.floor(Math.random() * quotes.length)];
+  document.getElementById('quote-text').textContent = quote.text;
+  document.getElementById('quote-author').textContent = '— ' + quote.author;
+}
+
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(page).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  event?.target?.closest('.nav-item')?.classList.add('active');
+  renderAll();
+  document.getElementById('themeSelector').classList.remove('active');
+}
+
+function renderAll() {
+  const todayStr = today;
+  const todayTasks = data.tasks.filter(t => t.dueDate === todayStr);
+  document.getElementById('stat-today').textContent = todayTasks.length;
+  document.getElementById('nav-task-count').textContent = todayTasks.length;
+  document.getElementById('stat-done').textContent = data.tasks.filter(t => t.completed).length;
+  document.getElementById('stat-classes').textContent = data.schedule.filter(s => s.date === todayStr).length;
+  
+  const maxStreak = data.habits.length ? Math.max(...data.habits.map(h => {
+    let streak = 0; const d = new Date();
+    while (h.completions[d.toISOString().split('T')[0]] === 'done') { streak++; d.setDate(d.getDate() - 1); }
+    return streak;
+  })) : 0;
+  document.getElementById('stat-streak').textContent = maxStreak;
+  
+  const totalToday = todayTasks.length;
+  const doneToday = todayTasks.filter(t => t.completed).length;
+  const progress = totalToday > 0 ? Math.round((doneToday / totalToday) * 100) : 0;
+  document.getElementById('day-progress-text').textContent = progress + '%';
+  document.getElementById('day-progress-bar').style.width = progress + '%';
+  
+  document.getElementById('dash-tasks').innerHTML = todayTasks.length ? todayTasks.map(t => `
+    <div class="flex items-center gap-2.5 p-2.5 rounded-lg cat-${t.category} ${t.completed ? 'opacity-50' : ''}">
+      <input type="checkbox" ${t.completed ? 'checked' : ''} onchange="toggleTask(${t.id})" class="checkbox">
+      <span class="${t.completed ? 'line-through' : ''} flex-1 text-sm">${t.title}</span>
+    </div>
+  `).join('') : '<div class="opacity-60 text-xs py-3 text-center">Нет задач</div>';
+  
+  const todaySchedule = data.schedule.filter(s => s.date === todayStr);
+  document.getElementById('dash-schedule').innerHTML = todaySchedule.length ? todaySchedule.map(s => `
+    <div class="p-3 rounded-xl" style="background:${s.color}15; border-left: 4px solid ${s.color}">
+      <div class="font-medium text-sm">${s.subject}</div>
+      <div class="text-xs opacity-70">${s.startTime} - ${s.endTime}</div>
+    </div>
+  `).join('') : '<div class="opacity-60 text-xs py-3 text-center">Нет пар</div>';
+  
+  const urgentDeadlines = data.deadlines.filter(d => !d.completed).sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate)).slice(0, 3);
+  document.getElementById('dash-deadlines').innerHTML = urgentDeadlines.length ? urgentDeadlines.map(d => `
+    <div class="flex items-center gap-2.5 p-2.5 rounded-lg deadline-urgent">
+      <i class="fas fa-flag text-red-500 text-xs"></i>
+      <div class="flex-1 min-w-0">
+        <div class="font-medium text-xs truncate">${d.title}</div>
+        <div class="text-[10px] opacity-70">${d.dueDate}</div>
+      </div>
+    </div>
+  `).join('') : '<div class="opacity-60 text-xs py-3 text-center">Нет дедлайнов</div>';
+}
+
+function toggleTask(id) {
+  const t = data.tasks.find(x => x.id === id);
+  if (t) { t.completed = !t.completed; if (t.completed) createConfetti(); save(); renderAll(); }
+}
+
+function openTaskModal() {
+  const title = prompt('Название задачи:');
+  if (!title) return;
+  const dueDate = prompt('Дата (YYYY-MM-DD):', today);
+  data.tasks.push({ id: Date.now(), title, dueDate: dueDate || today, completed: false, category: 'other', priority: 'medium' });
+  save(); renderAll();
+}
+
+function startPomodoro() {
+  alert('Таймер запущен! (в разработке)');
+}
+
+function exportData() {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `planner-backup-${today}.json`; a.click();
+  alert('✅ Экспортировано!');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (confirm('Заменить данные?')) {
+        data = { ...data, ...imported };
+        save(); renderAll(); alert('✅ Импортировано!');
+      }
+    } catch (err) { alert('Ошибка: ' + err.message); }
+  };
+  reader.readAsText(file);
+}
+
+function executeImportCode() {
+  const code = document.getElementById('import-code-area').value;
+  if (!code) { alert('Вставь код!'); return; }
+  try {
+    new Function('data', 'save', 'renderAll', 'createConfetti', code)(data, save, renderAll, createConfetti);
+    alert('✅ Код выполнен!');
+    save(); renderAll();
+  } catch (e) { alert('Ошибка: ' + e.message); }
+}
+
+(async function init() {
+  await loadFromCloud();
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  setTheme(savedTheme);
+  updateGreeting(); updateQuote(); renderAll();
+  setInterval(updateGreeting, 60000);
+  setInterval(() => saveToCloud(), 30000);
+})();
+</script>
+
+</body>
+</html>
